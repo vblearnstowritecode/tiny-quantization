@@ -1,7 +1,7 @@
 # Checks for quantize.py. Run with:  python test_quantize.py
 # Each test prints PASS or FAIL, so you can see exactly what works.
 
-from quantize import get_scale, quantize, dequantize
+from quantize import get_scale, quantize, dequantize, top_slot_for
 
 
 def close(a, b):
@@ -71,6 +71,58 @@ def test_error_never_beyond_half_a_step():
     return worst <= scale / 2 + 1e-9
 
 
+# ---- Day 2: fewer bits ----
+
+def test_top_slot_for_each_bit_width():
+    # Your formula: 2^(bits-1) - 1
+    return top_slot_for(8) == 127 and top_slot_for(4) == 7 and top_slot_for(2) == 1
+
+
+def test_4_bit_slots_stay_in_range():
+    weights = [0.31, -0.82, 0.07, -0.45, 0.66]
+    slots = quantize(weights, get_scale(weights, top_slot_for(4)))
+    return all(-7 <= s <= 7 for s in slots)
+
+
+def test_2_bit_uses_only_three_slots():
+    # 2 bits leaves only -1, 0 and 1 (ternary)
+    weights = [i / 100 for i in range(-100, 101)]
+    slots = quantize(weights, get_scale(weights, top_slot_for(2)))
+    return set(slots) == {-1, 0, 1}
+
+
+def test_2_bit_worked_example():
+    # From our session: 0.31 -> 0, 0.66 -> 0.82, -0.45 -> -0.82
+    weights = [0.31, -0.82, 0.07, -0.45, 0.66]
+    scale = get_scale(weights, top_slot_for(2))
+    back = dequantize(quantize(weights, scale), scale)
+    expected = [0.0, -0.82, 0.0, -0.82, 0.82]
+    return all(close(b, e) for b, e in zip(back, expected))
+
+
+def test_half_a_step_holds_for_every_bit_width():
+    # The fence rule works no matter how far apart the posts are
+    weights = [i / 1000 for i in range(-1000, 1001)]
+    for bits in [8, 4, 2]:
+        scale = get_scale(weights, top_slot_for(bits))
+        recovered = dequantize(quantize(weights, scale), scale)
+        worst = max(abs(w - r) for w, r in zip(weights, recovered))
+        if worst > scale / 2 + 1e-9:
+            return False
+    return True
+
+
+def test_fewer_bits_means_bigger_error():
+    # 8 bits beats 4 bits, and 4 bits beats 2 bits
+    weights = [i / 1000 for i in range(-1000, 1001)]
+    worst = {}
+    for bits in [8, 4, 2]:
+        scale = get_scale(weights, top_slot_for(bits))
+        recovered = dequantize(quantize(weights, scale), scale)
+        worst[bits] = max(abs(w - r) for w, r in zip(weights, recovered))
+    return worst[8] < worst[4] < worst[2]
+
+
 if __name__ == "__main__":
     tests = [
         test_scale_toy_example,
@@ -83,6 +135,12 @@ if __name__ == "__main__":
         test_biggest_weight_hits_top_slot,
         test_slots_stay_in_range,
         test_error_never_beyond_half_a_step,
+        test_top_slot_for_each_bit_width,
+        test_4_bit_slots_stay_in_range,
+        test_2_bit_uses_only_three_slots,
+        test_2_bit_worked_example,
+        test_half_a_step_holds_for_every_bit_width,
+        test_fewer_bits_means_bigger_error,
     ]
     passed = 0
     for test in tests:

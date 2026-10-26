@@ -24,6 +24,13 @@ def dequantize(slots, scale):
     return [s * scale for s in slots]
 
 
+def top_slot_for(bits):
+    # How high can the slots go with this many bits?
+    # 8 bits -> 127, 4 bits -> 7, 2 bits -> 1
+    # We skip the lone bottom slot (like -128) so both sides mirror each other.
+    return 2 ** (bits - 1) - 1
+
+
 # Run this file to see a round trip:  python quantize.py
 if __name__ == "__main__":
     weights = [0.31, -0.82, 0.07, -0.45, 0.66]
