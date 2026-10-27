@@ -123,6 +123,55 @@ def test_fewer_bits_means_bigger_error():
     return worst[8] < worst[4] < worst[2]
 
 
+# ---- Day 3: fewer bits can delete weights ----
+
+def count_zeros(weights, bits):
+    slots = quantize(weights, get_scale(weights, top_slot_for(bits)))
+    return slots.count(0)
+
+
+def test_031_becomes_zero_at_2_bits():
+    # Your answer: 0.31 / 0.82 = 0.38, less than half a step, so slot 0
+    weights = [0.31, -0.82, 0.07, -0.45, 0.66]
+    slots = quantize(weights, get_scale(weights, top_slot_for(2)))
+    return slots[0] == 0
+
+
+def test_minus_045_survives_at_2_bits():
+    # -0.45 / 0.82 = -0.55, just past half a step, so slot -1 (not zero)
+    weights = [0.31, -0.82, 0.07, -0.45, 0.66]
+    slots = quantize(weights, get_scale(weights, top_slot_for(2)))
+    return slots[3] == -1
+
+
+def test_zero_count_for_our_weights():
+    # 8 and 4 bits keep all five. 2 bits deletes 0.07 and 0.31.
+    weights = [0.31, -0.82, 0.07, -0.45, 0.66]
+    return (count_zeros(weights, 8) == 0
+            and count_zeros(weights, 4) == 0
+            and count_zeros(weights, 2) == 2)
+
+
+def test_fewer_bits_never_means_fewer_zeros():
+    # Taller steps make a wider zero zone, so zeros can only grow
+    weights = [i / 1000 for i in range(-1000, 1001)]
+    return count_zeros(weights, 8) <= count_zeros(weights, 4) <= count_zeros(weights, 2)
+
+
+def test_zero_exactly_when_inside_half_a_step():
+    # The rule: a weight becomes zero when it is closer than half a step to 0
+    weights = [i / 1000 for i in range(-1000, 1001)]
+    for bits in [8, 4, 2]:
+        scale = get_scale(weights, top_slot_for(bits))
+        slots = quantize(weights, scale)
+        for w, s in zip(weights, slots):
+            if abs(abs(w) - scale / 2) < 1e-9:
+                continue  # exactly on the edge: a tie, skip it
+            if (s == 0) != (abs(w) < scale / 2):
+                return False
+    return True
+
+
 if __name__ == "__main__":
     tests = [
         test_scale_toy_example,
@@ -141,6 +190,11 @@ if __name__ == "__main__":
         test_2_bit_worked_example,
         test_half_a_step_holds_for_every_bit_width,
         test_fewer_bits_means_bigger_error,
+        test_031_becomes_zero_at_2_bits,
+        test_minus_045_survives_at_2_bits,
+        test_zero_count_for_our_weights,
+        test_fewer_bits_never_means_fewer_zeros,
+        test_zero_exactly_when_inside_half_a_step,
     ]
     passed = 0
     for test in tests:

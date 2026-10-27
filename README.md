@@ -93,6 +93,7 @@ No libraries needed, just Python 3.
 ```
 python quantize.py         # see a round trip on 5 weights
 python compare_bits.py     # compare 8, 4 and 2 bits
+python zero_weights.py     # see which weights become zero
 python test_quantize.py    # run all the checks
 ```
 
@@ -203,7 +204,50 @@ That's why 8 bits is nearly free, while 2 bits usually needs extra tricks.
 
 ---
 
+## Day 3: Fewer bits can delete weights
+
+Look again at the 2-bit column above. Two weights became exactly `0.000`. Why?
+
+### The zero zone
+
+A weight lands on slot 0 when it is less than half a step away from 0.
+Take 0.31 at 2 bits, where one step is 0.82:
+
+```
+0.31 / 0.82 = 0.38   →   less than 0.5   →   slot 0
+```
+
+So every weight inside `-half a step … +half a step` vanishes.
+Taller steps make a wider zone:
+
+```
+      zero zone at 4 bits:     ├┤          (-0.059 … 0.059)
+      zero zone at 2 bits:  ├────────┤     (-0.410 … 0.410)
+   ──────────────────────────0──────────────
+```
+
+### The result
+
+Run `python zero_weights.py`:
+
+```
+bits    step   zero zone           weights turned to zero
+   8   0.006   -0.003 to 0.003     0 of 5  []
+   4   0.117   -0.059 to 0.059     0 of 5  []
+   2   0.820   -0.410 to 0.410     2 of 5  [0.31, 0.07]
+```
+
+Note that -0.45 survives. It is 0.55 steps from zero, just past the halfway mark.
+
+### Why it matters
+
+A zero weight does nothing, so we can skip it. That's **pruning** (Lecture 3),
+and here it happens for free. The flip side: if a small weight was important,
+2 bits deletes it without asking.
+
+---
+
 ## Coming next
 
-- Day 3: K-means quantization.
-- Day 4: a zero point, so we stop wasting the bottom slot.
+- Day 4: K-means quantization.
+- Day 5: a zero point, so we stop wasting the bottom slot.
