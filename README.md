@@ -94,7 +94,9 @@ No libraries needed, just Python 3.
 python quantize.py         # see a round trip on 5 weights
 python compare_bits.py     # compare 8, 4 and 2 bits
 python zero_weights.py     # see which weights become zero
+python kmeans_quantize.py  # let the slots move to the weights
 python test_quantize.py    # run all the checks
+python test_kmeans_quantize.py
 ```
 
 Output of `python quantize.py`:
@@ -247,7 +249,71 @@ and here it happens for free. The flip side: if a small weight was important,
 
 ---
 
+## Day 4: K-means quantization
+
+Linear slots sit at equal gaps, no matter where the weights are.
+At 2 bits, that wastes slots and deletes small weights:
+
+```
+weights:   -0.82      -0.45        0.07   0.31        0.66
+              ●          ●           ●     ●            ●
+  ────────────┼──────────────────────┼──────────────────┼────
+linear:     -0.82                    0                 0.82
+```
+
+**K-means lets the slots move to where the weights bunch up.**
+
+### Ice cream carts on a beach
+
+Weights are kids. Slots are ice cream carts. Repeat two rules:
+
+```
+Rule 1: each kid walks to the NEAREST cart.
+Rule 2: each cart moves to the AVERAGE of its kids.
+Stop when no kid switches carts.
+```
+
+Kids at 0, 4, 10, 16. Carts start at 0 and 3:
+
+```
+Round 1:  groups {0} {4, 10, 16}   →  carts move to 0 and 10
+Round 2:  kid 4 switches to A      →  carts move to 2 and 13
+Round 3:  nobody switches          →  stop
+```
+
+We repeat because moving a cart changes who is nearest.
+
+### The result
+
+Start from the linear slots and run `kmeans`:
+
+```
+weight    linear slot   error    k-means slot   error
+-0.82       -0.82       0.00       -0.635       0.185
+-0.45       -0.82       0.37       -0.635       0.185
+ 0.07        0          0.07        0.19        0.12
+ 0.31        0          0.31        0.19        0.12
+ 0.66        0.82       0.16        0.66        0.00
+─────────────────────────────────────────────────────
+worst error             0.37                    0.185
+```
+
+The worst error halves, and no weight vanishes.
+
+Each weight now stores only a 2-bit label (0, 1 or 2). The real values live
+once, in a short list called the **codebook**: `[-0.635, 0.19, 0.66]`.
+For a million weights, that list costs almost nothing.
+
+### Two things to know
+
+- **It always stops.** Each rule can only shrink the total distance.
+- **The start matters.** Carts starting at 5 and 16 get stuck at 4.67 and 16,
+  a worse answer. Starting from the linear slots spreads the carts out evenly.
+
+Try it: `python kmeans_quantize.py`, then `python test_kmeans_quantize.py`.
+
+---
+
 ## Coming next
 
-- Day 4: K-means quantization.
 - Day 5: a zero point, so we stop wasting the bottom slot.
