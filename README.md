@@ -312,6 +312,20 @@ For a million weights, that list costs almost nothing.
 
 Try it: `python kmeans_quantize.py`, then `python test_kmeans_quantize.py`.
 
+### A question to think about
+
+K-means only ever takes small steps that make things a little better.
+Like a hiker walking downhill in fog, it stops in the first valley it finds,
+even if a deeper valley sits just over the next hill.
+
+```
+start [0, 3]    →  [2, 13]       total walk 10     (deeper valley)
+start [5, 16]   →  [4.67, 16]    total walk 10.7   (stuck in a shallow one)
+```
+
+**You can't know the best start ahead of time. So how could you make
+getting stuck less likely?** (Day 5 starts here.)
+
 ---
 
 ## Coming next
