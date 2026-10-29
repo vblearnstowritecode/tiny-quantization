@@ -95,8 +95,10 @@ python quantize.py         # see a round trip on 5 weights
 python compare_bits.py     # compare 8, 4 and 2 bits
 python zero_weights.py     # see which weights become zero
 python kmeans_quantize.py  # let the slots move to the weights
+python shift_quantize.py   # start the slots at the smallest value
 python test_quantize.py    # run all the checks
 python test_kmeans_quantize.py
+python test_shift_quantize.py
 ```
 
 Output of `python quantize.py`:
@@ -324,10 +326,96 @@ start [5, 16]   →  [4.67, 16]    total walk 10.7   (stuck in a shallow one)
 ```
 
 **You can't know the best start ahead of time. So how could you make
-getting stuck less likely?** (Day 5 starts here.)
+getting stuck less likely?** (Answer at the start of Day 5.)
+
+---
+
+## Day 5: Shift the staircase
+
+**Answer to Day 4's question first.** Try several starts, and keep the one
+with the smallest total walk. This is called **restarts**. Each try is fast
+and independent, so they can even run at the same time.
+
+### The problem: empty slots
+
+So far, our slots sat around 0. That fits weights like `-0.82 … 0.66`.
+But some numbers in a network never go near 0. Say the values are `8 … 14`.
+
+With 3 bits we get 8 slots, so 7 steps. Starting the staircase at 0 means
+climbing from 0 to 14:
+
+```
+START AT 0                       START AT THE SMALLEST VALUE (8)
+
+14 ┤ ■                           14 ┤ ■
+12 ┤ ■                              ┤ ■
+10 ┤ ■                              ┤ ■
+ 8 ┤ ■                              ┤ ■
+ 6 ┤ □  ← no value                  ┤ ■
+ 4 ┤ □    lives here                ┤ ■
+ 2 ┤ □                              ┤ ■
+ 0 ┤ □                            8 ┤ ■
+
+step = 14 ÷ 7 = 2                step = 6 ÷ 7 = 0.857
+```
+
+Half the slots are wasted on the left. **The fix: start the staircase at the
+smallest value**, so every step lands where the values actually are.
+
+### Two notes are all you need
+
+For values `8 … 22` and 3 bits:
+
+```
+start = smallest value             = 8
+step  = (biggest − smallest) ÷ 7   = 14 ÷ 7 = 2
+```
+
+(3 bits give 2 × 2 × 2 = 8 slots. 8 slots have 7 steps between them.)
+
+```
+slot:    0    1    2    3    4    5    6    7
+value:   8   10   12   14   16   18   20   22
+```
+
+Going there and back:
+
+```
+value → slot:   round((value − start) ÷ step)     14 → (14 − 8) ÷ 2 = 3
+slot → value:   start + step × slot               3  → 8 + 2 × 3    = 14
+```
+
+We store only the tiny slots, plus the two notes once. When the model runs,
+slots turn back into values just before the math.
+
+### The result
+
+Values `8 … 14`, 3 bits, worst error over 601 values:
+
+```
+Day 1 method     ████████████████████████  2.33
+Shift (today)    ████▌                     0.43
+```
+
+About 5× smaller, with the same 3 bits. The worst error is still half a step.
+
+**One trap:** if every value is the same (`5, 5, 5`), the step is 0, and
+dividing by it crashes. Every value sits on slot 0 then, so we use step 1.
+
+Try it: `python shift_quantize.py`, then `python test_shift_quantize.py`.
+
+### A note on the name
+
+Textbooks call this *asymmetric quantization*. Instead of the start, they store
+the **zero point**: the slot where real 0 lands. For values `-2 … 12` with
+step 2, real 0 sits on slot 1. It's the same information, written another way.
+
+> One can be smart about memory and computation with little tricks that
+> seem obvious in hindsight but add a lot.
 
 ---
 
 ## Coming next
 
-- Day 5: a zero point, so we stop wasting the bottom slot.
+- Why textbooks store the zero point instead of the start.
+- Quantize a real tiny model and compare its outputs.
