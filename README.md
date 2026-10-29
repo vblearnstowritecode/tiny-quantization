@@ -413,6 +413,26 @@ step 2, real 0 sits on slot 1. It's the same information, written another way.
 > One can be smart about memory and computation with little tricks that
 > seem obvious in hindsight but add a lot.
 
+### A question to think about
+
+Networks are full of exact zeros. Every negative value that goes through a
+ReLU comes out as exactly 0. Now take values `-1 … 13` with 3 bits:
+
+```
+step = (13 − (−1)) ÷ 7 = 2
+
+slot:    0    1    2    3    4    5    6    7
+value:  -1    1    3    5    7    9   11   13
+            ↑
+        real 0 falls between two slots
+```
+
+No slot holds 0. So every 0 comes back as -1 or 1.
+
+**Is that a problem, if the error is still only half a step? And how could
+you move the staircase a tiny bit so that 0 lands exactly on a slot?**
+(Day 6 starts here.)
+
 ---
 
 ## Coming next
