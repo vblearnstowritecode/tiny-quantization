@@ -431,11 +431,63 @@ No slot holds 0. So every 0 comes back as -1 or 1.
 
 **Is that a problem, if the error is still only half a step? And how could
 you move the staircase a tiny bit so that 0 lands exactly on a slot?**
-(Day 6 starts here.)
+(Day 6 answers this below.)
+
+---
+
+## Day 6: Give real 0 its own slot
+
+Think of 8 boxes. The box numbers (slots) never change. Each box carries a
+sticky note with a real value. `start` is the note on box 0. `step` is how much
+each next note goes up.
+
+With values `-1 … 13`, real 0 falls between box 0 and box 1. So every 0 comes
+back as -1 or 1. Networks are full of exact zeros (ReLU, pruning, padding), so
+that small error repeats millions of times.
+
+**The fix:** nudge `start` a little so one box lands exactly on 0.
+
+```
+before:  box   0    1    2    3        after:  box   0    1    2    3
+         note -1    1    3    5                note -2    0    2    4
+                                                          ↑
+                                                     zero point = 1
+```
+
+The box that holds real 0 is the **zero point**. To find it, count the steps
+from `start` up to 0, and round to a whole box:
+
+```
+zero point = round(−start ÷ step)        start −6, step 2  →  3
+slot       = round(value ÷ step) + zero point
+value      = step × (slot − zero point)
+```
+
+**Two small traps:**
+
+- Python's `round(0.5)` gives 0, not 1. We use our own `round_half_up`.
+- The nudge can push the top value one box too high (13 → box 8, but 3 bits
+  stop at box 7). We clamp it back. The top value then returns as 12, not 13.
+  That's a fair trade, since zeros are far more common than 13s.
+
+Try it: `python zero_point.py`, then `python test_zero_point.py`.
+
+```
+original   slot   recovered   error
+   0.000      1       0.000   0.000    ← every 0 comes back exact
+   4.000      3       4.000   0.000
+  13.000      7      12.000   1.000
+```
+
+### A question to think about
+
+Take values `8 … 22`. Real 0 isn't even in the range. The formula gives a zero
+point of −4, a box that doesn't exist. **Is that a problem? Should every
+range be stretched to include 0?**
 
 ---
 
 ## Coming next
 
-- Why textbooks store the zero point instead of the start.
+- Integer-only math: multiply slots directly, without converting back.
 - Quantize a real tiny model and compare its outputs.
