@@ -15,6 +15,21 @@ def round_half_up(x):
     return int(x + 0.5) if x >= 0 else -int(-x + 0.5)
 
 
+def get_start_and_step_with_zero(values, bits):
+    # Day 7: stretch the range so it always touches 0.
+    # Toy example: values 8..22  ->  range 0..22  ->  real 0 always gets a box
+    # Why: networks add zeros the data never had (like padding around an image).
+    lowest = min(min(values), 0)
+    highest = max(max(values), 0)
+    step = (highest - lowest) / (2 ** bits - 1)
+
+    # Same trap as Day 5: if every value is 0, the step is 0. Any step works, so pick 1.
+    if step == 0:
+        step = 1
+
+    return lowest, step
+
+
 def get_zero_point(start, step):
     # How many steps to climb from start up to 0?
     # Toy example: start -6, step 2  ->  6 / 2  ->  zero point 3
@@ -55,3 +70,24 @@ if __name__ == "__main__":
     print("original   slot   recovered   error")
     for v, s, r in zip(values, slots, recovered):
         print(f"{v:8.3f}   {s:4d}   {r:9.3f}   {abs(v - r):.3f}")
+
+    # Day 7: a tiny image (values 8..22) with a frame of padding zeros around it.
+    image = [[0,  0,  0,  0, 0],
+             [0,  9, 12, 15, 0],
+             [0,  8, 20, 22, 0],
+             [0, 11, 14, 10, 0],
+             [0,  0,  0,  0, 0]]
+    picture_only = [9, 12, 15, 8, 20, 22, 11, 14, 10]  # the range a careless tool would measure
+
+    def round_trip_image(start, step):
+        zero_point = get_zero_point(start, step)
+        return [dequantize(quantize(row, zero_point, step, bits), zero_point, step) for row in image]
+
+    print("\nDay 7: padding zeros around an image\n")
+    print("Range 8..22 (ignores 0)          Range 0..22 (stretched to include 0)")
+    ignored = round_trip_image(*get_start_and_step(picture_only, bits))
+    stretched = round_trip_image(*get_start_and_step_with_zero(picture_only, bits))
+    for a, b in zip(ignored, stretched):
+        left = " ".join(f"{x:4.0f}" for x in a)
+        right = " ".join(f"{x:4.0f}" for x in b)
+        print(f"{left}         {right}")

@@ -485,6 +485,42 @@ Take values `8 … 22`. Real 0 isn't even in the range. The formula gives a zero
 point of −4, a box that doesn't exist. **Is that a problem? Should every
 range be stretched to include 0?**
 
+(Day 7 answers this below.)
+
+---
+
+## Day 7: Always leave a box for 0
+
+**Yes, stretch the range to include 0.** Even when your numbers have no zeros.
+
+Why? Networks add zeros your data never had. Image models put a frame of
+zeros around each picture, called **padding**, so the sliding window can
+reach the edges.
+
+If the range is `8 … 22`, there is no box for 0. Each padding 0 gets pushed
+into the nearest box and comes back as **8**. The quiet frame becomes a loud
+one:
+
+```
+what the network meant      range 8..22 (ignores 0)    range 0..22 (includes 0)
+  0  0  0  0  0               8  8  8  8  8              0  0  0  0  0
+  0  9 12 15  0               8 10 12 16  8              0  9 13 16  0
+  0  8 20 22  0      →        8  8 20 22  8              0  9 19 22  0
+  0 11 14 10  0               8 12 14 10  8              0 13 13  9  0
+  0  0  0  0  0               8  8  8  8  8              0  0  0  0  0
+```
+
+**The trade:** stretching makes each step a bit taller, so the picture gets
+slightly blurrier (right). Ignoring 0 ruins the frame (middle). A little blur
+is far better than a wrong frame, so real tools like PyTorch stretch the range
+to include 0.
+
+The fix is two lines: `lowest = min(smallest value, 0)` and
+`highest = max(biggest value, 0)`. See `get_start_and_step_with_zero` in
+`zero_point.py`.
+
+Try it: `python zero_point.py`, then `python test_zero_point.py`.
+
 ---
 
 ## Coming next
