@@ -523,6 +523,35 @@ Try it: `python zero_point.py`, then `python test_zero_point.py`.
 
 ---
 
+## Day 8: Why big models fit on your laptop
+
+**Quantization shrinks the suitcase.** It keeps the same model and the same
+weights, and it stores each one in fewer bits.
+
+A model with 7 billion weights stores each weight at 32 bits, which is 4 bytes.
+That adds up to 28 GB. A normal laptop has 16 GB of memory, so the model will
+not even load.
+
+At 8 bits, each weight takes 1 byte, and the whole model needs only 7 GB:
+
+```
+Laptop memory:   [████████████████]               16 GB
+7B at 32-bit:    [████████████████████████████]   28 GB   too big
+7B at  8-bit:    [███████]                         7 GB   fits
+7B at  4-bit:    [███▌]                          3.5 GB   fits easily
+```
+
+**The trade:** each halving of the bits halves the memory. In return you get
+the small rounding errors from Days 1–7. That is why tools like llama.cpp and
+Ollama ship 4-bit models: a little blur buys a model that actually runs.
+
+Some models are too big no matter what. A 70B model still needs 35 GB at
+4 bits.
+
+Try it: `python model_size.py`, then `python test_model_size.py`.
+
+---
+
 ## Coming next
 
 - Integer-only math: multiply slots directly, without converting back.
