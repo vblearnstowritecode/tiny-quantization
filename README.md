@@ -552,7 +552,41 @@ Try it: `python model_size.py`, then `python test_model_size.py`.
 
 ---
 
+## Day 9: Does the shrunk model still answer right?
+
+**Mostly, yes.** Each weight picks up a small rounding error, and those errors
+add up in the answer. Some push up and some push down, so they often cancel.
+
+Think of a store that rounds every price to the nearest dollar:
+
+```
+milk   $2.40 → $2   (−40¢)  ┐
+bread  $3.60 → $4   (+40¢)  ┘ cancel
+eggs   $4.70 → $5   (+30¢)    left over
+total $10.70 → $11  (+30¢)
+```
+
+A neuron works like that bill. It multiplies each input by a weight and adds
+them up. We shrink one neuron's 3 weights and compare its answer:
+
+```
+bits   answer   off by
+full    1.440   -
+   8    1.438   0.002   almost perfect
+   4    1.476   0.036
+   2    1.557   0.117   drifts about 8%
+```
+
+**The trade:** fewer bits means bigger errors in each weight, so the answer
+drifts more. With only 3 weights, cancelling is luck. With billions of weights,
+the ups and downs balance out much better. That's why 8-bit models barely lose
+any accuracy.
+
+Try it: `python neuron_check.py`, then `python test_neuron_check.py`.
+
+---
+
 ## Coming next
 
 - Integer-only math: multiply slots directly, without converting back.
-- Quantize a real tiny model and compare its outputs.
+- Quantize a real tiny model with many neurons and compare its outputs.
