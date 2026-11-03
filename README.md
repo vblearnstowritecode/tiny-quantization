@@ -578,9 +578,9 @@ full    1.440   -
 ```
 
 **The trade:** fewer bits means bigger errors in each weight, so the answer
-drifts more. With only 3 weights, cancelling is luck. With billions of weights,
-the ups and downs balance out much better. That's why 8-bit models barely lose
-any accuracy.
+drifts more. More weights don't fix this. The errors cancel, but so does the
+answer, because weights are a mix of plus and minus. 8 bits stays accurate
+because each error starts tiny.
 
 Try it: `python neuron_check.py`, then `python test_neuron_check.py`.
 
