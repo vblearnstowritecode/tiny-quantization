@@ -586,7 +586,71 @@ Try it: `python neuron_check.py`, then `python test_neuron_check.py`.
 
 ---
 
+## Day 10: Look inside a real model
+
+Until now we used toy numbers. Today we download a real model from Hugging
+Face and look at its weights.
+
+**The model:** a tiny sentiment model (`distilbert-sst2`). It reads a
+sentence and says 👍 or 👎. It has about 67M weights, so 67M × 4 bytes is
+about 268 MB.
+
+A model is like a music box. The code is the machine. The weights are the
+pins on the drum, and they decide the song.
+
+### What real weights look like
+
+We plot one grid from layer 1: 768 × 768 = 589,824 weights.
+
+![590,000 weights from one real grid](weights_hill.png)
+
+```
+Smallest weight:  -0.705
+Largest weight:    0.496
+Within +/-0.1:     97.5%   ← nearly everyone crowds near 0
+Positive:          50.1%   ← half push up, half pull down
+```
+
+It's a tall, thin hill. A few rare weights stretch the range far out to the
+edges.
+
+### Why that hurts linear quantization
+
+At 4 bits we get 16 buttons, spread evenly from -0.705 to 0.496.
+
+```
+scale      = 1.2 ÷ 15         = 0.08    (how tall each step is)
+zero point = round(0.705 ÷ 0.08) = 9    (the button that means real 0)
+button     = 9 + round(weight ÷ 0.08)
+```
+
+The crowd at ±0.1 is only 0.2 wide, so it gets about 2 to 3 buttons. It's
+like a 16-floor hotel where 97.5% of guests share 3 floors.
+
+Any weight within half a step of 0 (±0.04) lands on button 9 and comes back as 0:
+
+```
+8 bits:   4.6% of weights vanish to 0
+4 bits:  66.5% vanish
+2 bits:  almost all vanish
+```
+
+**The trade:** a few loud weights set the step size for everyone. Linear
+spaces its steps evenly, so the quiet crowd gets rounded coarsely.
+
+Try it: `python look_inside.py` (downloads 268 MB the first time), then
+`python test_look_inside.py`.
+
+---
+
 ## Coming next
 
-- Integer-only math: multiply slots directly, without converting back.
-- Quantize a real tiny model with many neurons and compare its outputs.
+```
+Day 11  Linear vs K-means  → squeeze one real grid, compare the errors
+Day 12  Linear vs K-means  → squeeze the whole model, count flipped answers
+```
+
+**The bet:** K-means puts its steps where the weights crowd, instead of
+spacing them evenly. So it should save the vanishing weights. We'll check.
+
+Later: integer-only math (multiply slots directly, without converting back).
