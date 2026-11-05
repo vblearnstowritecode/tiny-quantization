@@ -700,13 +700,58 @@ then `python test_race.py`.
 
 ---
 
+## Day 12: Same memory, broken model or perfect model
+
+**The answer:** we squeeze all 38 grids of the model and ask it 20 movie
+reviews. At 4 bits, linear breaks the model. K-means flips nothing.
+
+```
+flips out of 20 reviews (vs the original model)
+            8 bits   4 bits   2 bits
+linear        0        10       10     ← stuck on 👍, as good as a coin
+k-means       0         0        5     ← damaged, but still reading
+```
+
+### The broken thermometer
+
+Linear at 4 bits answers 👍 to all 20 reviews, even *"Terrible script,
+terrible acting, terrible everything."* Like a thermometer stuck on 25°C, it
+looks right on some days but measures nothing. Our reviews are half 👍 and
+half 👎, so it flips all 10 negative ones. A coin would do as well.
+
+### Three choices that keep the test fair
+
+```
+1. Each grid gets its own buttons      (per-tensor quantization)
+     the classifier is only -0.07..0.07; layer 6 ffn.lin2 is -3.19..1.09.
+     One shared set of buttons would turn the whole classifier into 0.
+
+2. Compare with the ORIGINAL model     (not with a human's answer)
+     then every flip comes from the squeeze, nothing else.
+
+3. Squeeze a fresh COPY each time      (the original is our "before" photo)
+```
+
+### Polling for speed
+
+K-means on 43 million weights is slow. Like a pollster, we place each grid's
+carts using a random 50,000 of its weights, then snap all of them to the
+nearest cart. On the Day 11 grid, the poll's error is within 1% of asking
+everyone, in under a second.
+
+**The trade:** both methods use the same memory. Only the button placement
+differs, and at 4 bits that's the difference between a broken model and a
+perfect one.
+
+Try it: `python whole_model.py` (about 2 minutes), then
+`python test_whole_model.py`.
+
+---
+
 ## Coming next
 
-```
-Day 12  Linear vs K-means  → squeeze the whole model, count flipped answers
-```
-
-**The question:** K-means wins on average error, but it crushes the rare big
-weights. Does the model still give the right 👍/👎?
+Why not always use K-means? Linear buttons follow a formula, so chips can
+multiply whole numbers fast. K-means carts sit anywhere, so every weight
+needs a lookup table first.
 
 Later: integer-only math (multiply slots directly, without converting back).
