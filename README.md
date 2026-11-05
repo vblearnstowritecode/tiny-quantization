@@ -643,14 +643,70 @@ Try it: `python look_inside.py` (downloads 268 MB the first time), then
 
 ---
 
+## Day 11: K-means beats linear on a real layer
+
+**The answer:** on the same 589,824 real weights, K-means cuts the error to
+about a quarter of linear's, at every bit width. Not just at low bits.
+
+Same number of buttons, two ways to place them:
+
+```
+Linear:   buttons evenly spaced, edge to edge
+  ●──────●──────●──────●──────●──────●──────●
+              [██ crowd ██]
+
+K-means:  buttons (carts) walk to where the weights are
+                ●  ●●●●●●●  ●
+              [██ crowd ██]
+```
+
+### The score: mean absolute error
+
+Take the size of each miss, ignore its sign, and average. Without the
+`abs()`, a miss of +0.1 and a miss of −0.1 would cancel to a perfect 0.
+
+### The result
+
+The K-means carts start on the linear buttons, so the race starts as a tie.
+Then the carts move.
+
+```
+bits   linear MAE   k-means MAE   k-means error is
+  8      0.00118      0.00033       28% of linear
+  4      0.01981      0.00413       21% of linear
+  2      0.03380      0.01237       37% of linear
+
+buttons inside the crowd (±0.1):
+  8 bits:  linear  43 of 256   k-means 151 of 256
+  4 bits:  linear   3 of 16    k-means  12 of 16
+  2 bits:  linear   1 of 4     k-means   4 of 4
+```
+
+Even with 256 buttons, linear parks most of them in the empty edges. The
+problem is the **shape** of the weights, not the number of bits.
+
+### The catch
+
+At 2 bits, all 4 carts move into the crowd (−0.07 to +0.07). So the rare big
+weights get crushed: +0.496 comes back as +0.066. The average error drops,
+but a few weights get badly hurt. Do those few matter? Day 12 will tell.
+
+We use scikit-learn's `KMeans` because our Day 4 loops would be far too slow
+for 590,000 weights. A test checks that it gives the same carts as our own
+Day 4 code.
+
+Try it: `pip install scikit-learn`, then `python race.py` (about a minute),
+then `python test_race.py`.
+
+---
+
 ## Coming next
 
 ```
-Day 11  Linear vs K-means  → squeeze one real grid, compare the errors
 Day 12  Linear vs K-means  → squeeze the whole model, count flipped answers
 ```
 
-**The bet:** K-means puts its steps where the weights crowd, instead of
-spacing them evenly. So it should save the vanishing weights. We'll check.
+**The question:** K-means wins on average error, but it crushes the rare big
+weights. Does the model still give the right 👍/👎?
 
 Later: integer-only math (multiply slots directly, without converting back).
