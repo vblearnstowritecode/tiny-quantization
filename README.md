@@ -777,7 +777,17 @@ Try it: `python whole_model.py` (about 2 minutes), then
 
 ## Coming next
 
-Why not always use K-means? Linear buttons follow a formula, so chips can
+**A detective story: which grid broke linear?** On Day 12, linear at 4 bits
+made the model say 👍 to everything. But the model has 38 grids. Was it the
+tiny classifier at the very end (−0.07 to 0.07)? The wide `ffn.lin2` grids
+(up to −3.19)? Or did small damage pile up everywhere? We'll squeeze one kind
+of grid at a time and catch the culprit. Make your guess before you read on.
+
+```
+suspects:   q_lin  k_lin  v_lin  out_lin  ffn.lin1  ffn.lin2  classifier
+```
+
+Then: why not always use K-means? Linear buttons follow a formula, so chips can
 multiply whole numbers fast. K-means carts sit anywhere, so every weight
 needs a lookup table first.
 
