@@ -5,6 +5,33 @@ Quantization, worked out by hand with small numbers. One idea per day.
 I'm learning from [MIT EfficientML, Lecture 5](https://www.youtube.com/watch?v=Qg_3N8pdK9s).
 This repo is my notes in code form, written for someone new to the topic.
 
+## The story so far (1 minute)
+
+A model is millions of decimal numbers (weights). Quantization stores each one
+in fewer bits, so the model fits in less memory. The price is rounding error.
+
+```
+Days 1-3   Round weights onto evenly spaced buttons. Fewer bits = bigger
+           steps = bigger errors. Small weights can vanish to 0.
+Day 4      K-means: let the buttons move to where the weights are.
+Days 5-7   Shift and stretch the buttons so they fit the weights,
+           and real 0 always gets a button of its own.
+Days 8-9   Why bother: a 7B model drops from 28 GB to 3.5 GB at 4 bits,
+           and one neuron still gives nearly the same answer.
+Day 10     Real weights crowd near 0, with a few far out at the edges.
+           Evenly spaced buttons waste most of their places on empty edges.
+Day 11     On one real grid, K-means cuts the error to about a quarter.
+Day 12     On the whole model at 4 bits: linear breaks it (says 👍 to
+           everything), and K-means flips nothing.
+```
+
+**The big lesson:** with the same memory, *where* you put the buttons decides
+whether the model works.
+
+**To run the code:** Days 1-9 need only Python. For Days 10-12, run
+`pip install -r requirements.txt` first. Every `test_*.py` file prints
+PASS or FAIL for each check.
+
 ---
 
 ## Day 1: Linear quantization

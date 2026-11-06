@@ -1,0 +1,12 @@
+# Libraries this repo needs. Install them all with:
+#   pip install -r requirements.txt
+#
+# Days 1-9 need nothing: plain Python only.
+# Days 10-12 load a real model, so they need these.
+# The versions are the ones we tested with. Newer ones should work too.
+
+torch>=2.8
+transformers>=5.5
+scikit-learn>=1.9
+numpy>=2.3
+matplotlib>=3.10
