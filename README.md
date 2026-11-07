@@ -2,7 +2,8 @@
 
 Quantization, worked out by hand with small numbers. One idea per day.
 
-I'm learning from [MIT EfficientML, Lecture 5](https://www.youtube.com/watch?v=Qg_3N8pdK9s).
+I'm learning from MIT EfficientML [Lecture 5](https://www.youtube.com/watch?v=Qg_3N8pdK9s)
+(Days 1-13) and [Lecture 6](https://www.youtube.com/watch?v=_sHTMuOQY5A) (Day 14 on).
 This repo is my notes in code form, written for someone new to the topic.
 
 ## The story so far (1 minute)
@@ -23,12 +24,14 @@ Day 10     Real weights crowd near 0, with a few far out at the edges.
 Day 11     On one real grid, K-means cuts the error to about a quarter.
 Day 12     On the whole model at 4 bits: linear breaks it (says 👍 to
            everything), and K-means flips nothing.
+Day 14     Give each row of a grid its own buttons (per-channel).
+           Linear at 4 bits goes from broken to 1 flip in 20.
 ```
 
 **The big lesson:** with the same memory, *where* you put the buttons decides
 whether the model works.
 
-**To run the code:** Days 1-9 need only Python. For Days 10-12, run
+**To run the code:** Days 1-9 need only Python. For Days 10-14, run
 `pip install -r requirements.txt` first. Every `test_*.py` file prints
 PASS or FAIL for each check.
 
@@ -775,19 +778,74 @@ Try it: `python whole_model.py` (about 2 minutes), then
 
 ---
 
+## Day 14: One outlier shouldn't blur the whole grid
+
+**The answer:** give every row of a grid its own buttons. Linear at 4 bits
+goes from "👍 to everything" to just 1 flip in 20, with the same 4 bits per
+weight.
+
+### Why it works: one zoom per row
+
+Picture a school photo with one very tall student in row 3. To fit them in,
+the photographer zooms out, and every face gets tiny. Fix: one photo per row.
+Only row 3 gets zoomed out.
+
+A grid works the same way. On Day 12, each grid had one scale, so a single
+outlier stretched the range for all 589,824 weights. Now each row gets its
+own scale and zero point.
+
+```
+per-tensor (one scale)          per-channel (one scale per row)
+row 1  · · · · ·  blurry        row 1  ● ● ● ● ●  sharp
+row 2  · · · · ·  blurry        row 2  ● ● ● ● ●  sharp
+row 3  · · · ⬤ ·  outlier       row 3  · · · ⬤ ·  only this row pays
+row 4  · · · · ·  blurry        row 4  ● ● ● ● ●  sharp
+```
+
+### Why rows? A layer is a panel of judges
+
+Every judge reads the same 768 inputs, and each row is one judge's scoring
+sheet. One judge's output is called a **channel**. Judges have different
+habits (some score big, some gentle), so each one gets their own scale.
+
+### The results
+
+```
+one grid (layer 0 q_lin), average error per weight
+bits   per-tensor   per-channel
+  8      0.00118      0.00031
+  4      0.01981      0.00535     ← about 4x smaller
+  2      0.03380      0.02476
+
+whole model, linear: flips out of 20 reviews
+               8 bits   4 bits   2 bits
+per-tensor        0       10       10     ← Day 12: stuck on 👍
+per-channel       0        1        6     ← today
+```
+
+At 2 bits, the 8 easy reviews all survive. The 6 flips are the tricky ones:
+*"Not bad at all"* becomes 👎, and *"Oh great, another two hours of my life
+gone"* becomes 👍. The squeezed model reads single words at face value and
+loses "not", "but" and sarcasm. **Lesson: test squeezed models on hard
+examples, not just easy ones.**
+
+**The trade:** one extra scale per row. For `q_lin` at 4 bits, that's 768
+scales (about 3 KB) on top of about 295 KB of weights, or about 1% more
+memory. Rows that hold an outlier still suffer inside, which is tomorrow's
+problem.
+
+Try it: `python per_channel.py` (about 5 minutes), then
+`python test_per_channel.py`.
+
+---
+
 ## Coming next
 
-**A detective story: which grid broke linear?** On Day 12, linear at 4 bits
-made the model say 👍 to everything. But the model has 38 grids. Was it the
-tiny classifier at the very end (−0.07 to 0.07)? The wide `ffn.lin2` grids
-(up to −3.19)? Or did small damage pile up everywhere? We'll squeeze one kind
-of grid at a time and catch the culprit. Make your guess before you read on.
+**Groups (Day 15).** Row 3 has 768 weights and one outlier. Why should the
+other 767 pay? Cut each row into small groups of 16 or 32 weights, each with
+its own scale. This is the idea behind NVIDIA's FP4 format on its newest GPUs.
 
-```
-suspects:   q_lin  k_lin  v_lin  out_lin  ffn.lin1  ffn.lin2  classifier
-```
-
-Then: why not always use K-means? Linear buttons follow a formula, so chips can
+Then: clipping (cut off the far edges on purpose) and why not always use K-means? Linear buttons follow a formula, so chips can
 multiply whole numbers fast. K-means carts sit anywhere, so every weight
 needs a lookup table first.
 
