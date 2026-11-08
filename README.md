@@ -839,13 +839,77 @@ Try it: `python per_channel.py` (about 5 minutes), then
 
 ---
 
+## Day 15: Groups, and the hidden cost of scales
+
+**The answer:** cut every row into small groups of 16 weights, and give each
+group its own buttons. Linear at 4 bits now flips 0 reviews in 20, and 2 bits
+flips just 1. But the scales cost real memory, so always count them.
+
+### Why it works: the outlier only blurs its own group
+
+On Day 14, row 3 had one outlier, so all 768 weights in row 3 got wide steps.
+Now the outlier only spoils its own group of 16. The other 752 weights in the
+row stay sharp.
+
+```
+per-channel (one scale per row)
+row 3  [ · · · · · · · ⬤ · · · · · · · · · · · · · · · · · · · · · · · · · ]  all blurry
+
+per-group (one scale per 16 weights)
+row 3  [ · · · · · · · ⬤ · · · · · · · · ][ ● ● ● ● ● ● ● ● ● ● ● ● ● ● ● ● ]  ...
+              only this group pays                    sharp
+```
+
+The code reuses the same Day 6 `squeeze()`. It just runs on each group
+instead of each row.
+
+### The results
+
+```
+flips out of 20         8 bits   4 bits   2 bits    extra bits per weight
+per-tensor  (Day 12)       0       10       10        ~0
+per-channel (Day 14)       0        1        6        0.04
+per-group   (today)        0        0        1        2.00
+```
+
+At 2 bits, "Not bad at all" and the sarcastic review read correctly again.
+The only flip left is *"My kids loved it, I fell asleep."* That one is mixed
+even for a human.
+
+### The catch: who pays for the scales?
+
+Each group stores one 32-bit scale. Its 16 weights split that bill, like 16
+friends sharing a $32 dinner:
+
+```
+bits per weight = own bits + 32 ÷ group size
+
+per-channel 4-bit:   4 + 32 ÷ 768  ≈ 4.04 bits
+per-group   2-bit:   2 + 32 ÷ 16   = 4    bits   ← really a 4-bit format!
+group of 1:          4 + 32 ÷ 1    = 36   bits   ← worse than plain float32
+```
+
+So per-group 2-bit and per-channel 4-bit fill the same suitcase. Both flip 1
+review. And on one real grid, per-channel 4-bit is actually closer to the
+original (average error 0.0054 vs 0.0129).
+
+**The trade:** smaller groups make each group sharper, but every group adds
+a scale to store. **Lesson: when someone says "2-bit", ask "how many bits per
+weight, including the scales?"**
+
+Try it: `python per_group.py` (a few minutes), then `python test_per_group.py`.
+
+### A question to think about
+
+Groups clearly help, but a 32-bit scale per 16 weights is a big bill. You
+can't make the groups bigger without losing the gain. What else could you
+change to make the bill smaller?
+
+---
+
 ## Coming next
 
-**Groups (Day 15).** Row 3 has 768 weights and one outlier. Why should the
-other 767 pay? Cut each row into small groups of 16 or 32 weights, each with
-its own scale. This is the idea behind NVIDIA's FP4 format on its newest GPUs.
-
-Then: clipping (cut off the far edges on purpose) and why not always use K-means? Linear buttons follow a formula, so chips can
+Clipping (cut off the far edges on purpose) and why not always use K-means? Linear buttons follow a formula, so chips can
 multiply whole numbers fast. K-means carts sit anywhere, so every weight
 needs a lookup table first.
 
