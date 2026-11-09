@@ -907,6 +907,63 @@ change to make the bill smaller?
 
 ---
 
+## Day 16: Quantize the scales too
+
+**The answer to yesterday's question:** shrink the scale itself. Store each
+group's scale in 8 bits instead of 32. At 4 bits, the bill drops from **6 to
+4.5 bits per weight**, with no visible loss.
+
+### Why it needs a second level
+
+Squeezing a scale into 8 bits *is* quantizing it. And quantizing always needs
+a scale. So each grid gets one **scale for the scales**. It's shared by about
+590,000 weights, so it costs almost nothing.
+
+```
+grid scale    (one per grid, 32 bits)        0.03
+   × scale button  (one per group, 8 bits)     1     →  group scale  0.03
+   × weight button (one per weight, 4 bits)    2     →  weight       0.06
+```
+
+Like a price list where every tag just says "41" or "9", and one sign at the
+door says "all prices × ₹100". This is called **two-level scaling**.
+
+### A hand-worked toy (scale buttons 0..10, to make the rounding visible)
+
+```
+group scales:  A = 0.30   B = 0.04
+grid scale  =  0.30 ÷ 10 = 0.03
+buttons     =  A → 10,  B → round(1.33) = 1   →  B's scale comes back as 0.03
+
+B's weights      0.00  0.05  0.08  0.12
+with 0.04        0.00  0.04  0.08  0.12
+with 0.03        0.00  0.06  0.09  0.09   ← 0.12 wants button 4, top is 3: clipped
+```
+
+One squeezed scale shifted every weight in its group. A scale's error hurts
+the whole group, not just one weight.
+
+### The results
+
+```
+                          error (q_lin, 4-bit)   flips 8b / 4b / 2b   scale bill
+per-group, 32-bit scales        0.00256              0 / 0 / 1          2.0 bits
+two-level, 8-bit scales         0.00257              0 / 0 / 2          0.5 bits
+```
+
+The new 2-bit flip is the sarcastic *"Oh great, another two hours of my life
+gone."* It was already on the edge.
+
+Why so harmless here, when B lost 25% in the toy? The real ruler has 256
+marks, not 11, so each scale lands much closer to a mark.
+
+**The trade:** 1.5 bits per weight saved, for a tiny bit of extra error.
+A very big outlier scale would stretch the ruler and hurt the small scales.
+
+Try it: `python two_level.py` (about 5 minutes), then `python test_two_level.py`.
+
+---
+
 ## Coming next
 
 Clipping (cut off the far edges on purpose) and why not always use K-means? Linear buttons follow a formula, so chips can
