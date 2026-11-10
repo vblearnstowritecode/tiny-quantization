@@ -964,9 +964,53 @@ Try it: `python two_level.py` (about 5 minutes), then `python test_two_level.py`
 
 ---
 
+## Day 17: GGUF and NVFP4 are our Day 16 design
+
+Two of today's real 4-bit formats use the same trick we built on Day 16:
+**two levels of scales**. Both cost **4.5 bits per weight**, just like ours.
+
+- **GGUF** is the file format for running models on a laptop, with llama.cpp or Ollama.
+- **NVFP4** is NVIDIA's format. Their newest chips unpack it in hardware.
+
+### Big scale, small scale
+
+Think of a postal address. The country covers millions of homes. The street
+covers just a few. Each level is a scale, and the big one is almost free
+because so many weights share it.
+
+```
+                Day 16 (ours)      NVFP4              GGUF Q4_K
+country     →   32-bit per grid    32-bit per grid    16-bit per 256
+street      →   8-bit per 16       8-bit per 16       6-bit per 32
+each weight →   4 bits             4 bits             4 bits
+bill        →   4.5 bits           4.5 bits           4.5 bits
+```
+
+NVFP4's layout is exactly ours. GGUF uses smaller street scales on bigger
+blocks, and spends the saving on a **min** for each block: where the
+staircase starts (Day 5). Then no buttons go to waste below the weights.
+
+### Reading a GGUF name
+
+```
+Q4_K_M
+│  │ └─ M = medium: a few sensitive layers get 6 bits, the rest 4
+│  └─── K = "k-quants": the two-level super-block design
+└────── Q4 = 4 bits per weight
+```
+
+**The trade:** a second level costs almost nothing, and cuts the scale bill
+from 2 bits to 0.5 bits per weight. That's why real formats use it.
+
+Try it: `python real_formats.py` (instant), then `python test_real_formats.py`.
+
+---
+
 ## Coming next
 
-Clipping (cut off the far edges on purpose) and why not always use K-means? Linear buttons follow a formula, so chips can
+FP4's uneven buttons: NVFP4's 4-bit weights aren't evenly spaced. Why?
+
+Then clipping (cut off the far edges on purpose) and why not always use K-means? Linear buttons follow a formula, so chips can
 multiply whole numbers fast. K-means carts sit anywhere, so every weight
 needs a lookup table first.
 
