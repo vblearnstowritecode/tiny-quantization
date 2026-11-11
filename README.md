@@ -1006,11 +1006,68 @@ Try it: `python real_formats.py` (instant), then `python test_real_formats.py`.
 
 ---
 
+## Day 18: FP4's uneven buttons
+
+**FP4 puts its buttons close together near 0 and far apart out at the edges.**
+That fits real weights, because most of them crowd near 0 (Day 10).
+
+### Bus stops in a city
+
+You have a few bus stops to place on a long road. Most people live
+downtown. So you put many stops downtown, close together, and only a
+few in the suburbs, far apart. FP4 does the same with its buttons.
+
+```
+weights:          .    .   . .:::|||||:::. .   .    .
+                              (crowd near 0)
+
+linear (even):    |  |  |  |  |  |  |  |  |  |  |  |  |
+                         same gap everywhere
+
+FP4 (uneven):     |     |   |  | ||||||| |  |   |     |
+                  -6   -4  -3 -2    0    2  3   4     6
+                   suburbs     downtown      suburbs
+```
+
+The 8 positive FP4 values are 0, 0.5, 1, 1.5, 2, 3, 4 and 6.
+A scale stretches them to fit the weights: divide, snap to the nearest
+button, multiply back. Near 0 the walk to a stop is short. Far out it is
+long, but few weights live out there.
+
+### The race on our real grid
+
+Same q_lin grid as Day 10, 4 bits, one scale for the whole grid:
+
+```
+                    linear    FP4
+error (MAE)         0.0198    0.0147     ← about 26% less error
+crowd buttons       3         3          ← same number of stops
+gap near 0          0.080     0.059      ← but FP4's stops sit closer
+```
+
+The surprise: the crowd still gets only 3 buttons. FP4 wins because those
+buttons sit **closer together**, not because there are more of them. The
+one far-out weight (-0.705) stretches both rulers. Linear spreads the
+stretch evenly. FP4 pushes most of it into the empty suburbs.
+
+FP4 needs no lookup table: its buttons are always the same, and the chip
+has them built in. K-means (Day 11) still wins on error, at 0.0041, but
+every grid must store its own list of carts.
+
+**The trade:** FP4 gets part of K-means' benefit for free, because the
+uneven spacing is fixed in the chip. It loses some accuracy, because the
+buttons can't move to fit each grid.
+
+Note: we used one scale for the whole grid, to keep the race fair. Real
+NVFP4 also adds groups of 16 and two levels of scales (Days 15–17).
+
+Try it: `python fp4.py` (about 2 minutes), then `python test_fp4.py`.
+
+---
+
 ## Coming next
 
-FP4's uneven buttons: NVFP4's 4-bit weights aren't evenly spaced. Why?
-
-Then clipping (cut off the far edges on purpose) and why not always use K-means? Linear buttons follow a formula, so chips can
+Clipping (cut off the far edges on purpose) and why not always use K-means? Linear buttons follow a formula, so chips can
 multiply whole numbers fast. K-means carts sit anywhere, so every weight
 needs a lookup table first.
 
