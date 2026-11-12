@@ -1065,6 +1065,50 @@ Try it: `python fp4.py` (about 2 minutes), then `python test_fp4.py`.
 
 ---
 
+## Day 19: give both groups, and FP4 loses
+
+Once each group of 16 gets its own scale, plain linear beats FP4 on our
+weights.
+
+```
+4 bits, same q_lin grid     linear    FP4
+one scale for the grid      0.0198    0.0147   ← FP4 wins (Day 18)
+groups of 16                0.00256   0.00293  ← linear wins, by about 14%
+```
+
+**Why it flips.** FP4 won on Day 18 because one far-out weight stretched
+the whole grid's scale. Groups already fix that: the outlier only stretches
+its own group. Inside a small group, weights spread out fairly evenly, and
+even gaps fit even weights. FP4's wide far-out gaps (4 → 6) now cost it.
+
+```
+whole grid:    ····|||||||||····                 ·   ← crowd, then one outlier
+group of 16:   ·  · · ·· ·· · ·  ·                   ← fairly even, no long gap
+```
+
+**So why do real chips (NVFP4) use FP4 with groups?**
+
+- Speed: FP4 is a tiny floating-point number. New GPUs do math on it
+  directly, with built-in circuits.
+- Activations: the numbers that flow through the model change with every
+  input. They often keep a sudden spike even inside a group of 16. FP4's
+  close stops near 0 still help there.
+
+```
+one spiky group:   0.4  0.6  0.5 ... 0.6   6.0 ← spike sets the scale
+linear stops:      0    0.86   1.71 ...        ← the crowd falls between 2 stops
+FP4 stops:         0    0.5    1    1.5 ...    ← the crowd gets close stops
+```
+
+**The trade:** on calm weights with groups, even gaps win a little. FP4
+gives one format that is fast on the chip and handles spikes well enough.
+
+Note: we tested one grid of one small model. Other grids may differ.
+
+Try it: `python fp4.py` (about 2 minutes), then `python test_fp4.py`.
+
+---
+
 ## Coming next
 
 Clipping (cut off the far edges on purpose) and why not always use K-means? Linear buttons follow a formula, so chips can

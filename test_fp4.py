@@ -6,6 +6,7 @@ from fp4 import (
     nearest_button,
     fp4_scale,
     squeeze_fp4,
+    squeeze_fp4_per_group,
     crowd_buttons,
 )
 from look_inside import squeeze
@@ -138,6 +139,55 @@ def test_crowd_buttons_empty():
     return crowd_buttons([0.5, -0.9]) == 0
 
 
+# --- Day 19: FP4 with groups ---
+
+def test_groups_toy():
+    # Group size 2: [1, 6] gets scale 1, [0.5, 3] gets scale 0.5. All land exactly.
+    out = squeeze_fp4_per_group([[1, 6, 0.5, 3]], group_size=2)
+    return all(close(a, b) for a, b in zip(out[0], [1, 6, 0.5, 3]))
+
+
+def test_groups_keep_shape():
+    rows = [[0.1] * 20, [0.2] * 5]
+    out = squeeze_fp4_per_group(rows)
+    return len(out) == 2 and len(out[0]) == 20 and len(out[1]) == 5
+
+
+def test_one_big_group_same_as_no_groups():
+    row = [0.05, -0.3, 0.12, 0.9, -0.01]
+    return squeeze_fp4_per_group([row], group_size=100)[0] == squeeze_fp4(row)
+
+
+def test_groups_all_zeros():
+    return squeeze_fp4_per_group([[0, 0, 0]], group_size=2) == [[0, 0, 0]]
+
+
+def test_groups_protect_small_weights_from_an_outlier():
+    # One outlier (6) in the first group. Without groups it stretches every scale.
+    # With groups, the small second group gets its own small scale.
+    row = [0.01, 6, 0.02, 0.03]
+    one_scale = mean_absolute_error(row, squeeze_fp4(row))
+    groups = mean_absolute_error(row, squeeze_fp4_per_group([row], group_size=2)[0])
+    return groups < one_scale
+
+
+def test_linear_beats_fp4_on_an_even_spread():
+    # Today's finding: when weights spread evenly (no crowd, no outlier),
+    # even gaps fit better. FP4's wide far-out gaps now cost it.
+    weights = [i / 100 - 1 for i in range(201)]   # -1.00 .. 1.00, evenly
+    linear_mae = mean_absolute_error(weights, squeeze(weights, 4))
+    fp4_mae = mean_absolute_error(weights, squeeze_fp4(weights))
+    return linear_mae < fp4_mae
+
+
+def test_fp4_beats_linear_on_a_spiky_group():
+    # Activations: a small crowd plus one spike, inside one group of 16.
+    group = [0.4, 0.6, 0.5] * 5 + [6.0]
+    linear_mae = mean_absolute_error(group, squeeze(group, 4))
+    fp4_mae = mean_absolute_error(group, squeeze_fp4(group))
+    return fp4_mae < linear_mae
+
+
 if __name__ == "__main__":
     tests = [
         test_15_buttons,
@@ -161,6 +211,13 @@ if __name__ == "__main__":
         test_fp4_beats_linear_on_a_crowd,
         test_crowd_buttons_toy,
         test_crowd_buttons_empty,
+        test_groups_toy,
+        test_groups_keep_shape,
+        test_one_big_group_same_as_no_groups,
+        test_groups_all_zeros,
+        test_groups_protect_small_weights_from_an_outlier,
+        test_linear_beats_fp4_on_an_even_spread,
+        test_fp4_beats_linear_on_a_spiky_group,
     ]
     passed = 0
     for t in tests:
