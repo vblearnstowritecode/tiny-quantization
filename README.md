@@ -1109,6 +1109,59 @@ Try it: `python fp4.py` (about 2 minutes), then `python test_fp4.py`.
 
 ---
 
+## Day 20: spikes in activations, and FP4's wasted mirror
+
+One spiky channel ruins its group for every token, and FP4 doesn't rescue it.
+
+**Activations** are the numbers a token carries between layers. Weights are
+fixed after training. Activations are new for every sentence.
+
+We fed one review into DistilBERT and copied the activations between
+layers 3 and 4: 10 tokens × 768 channels. One channel (column) is huge for
+almost every token:
+
+```
+             ch 308     a typical number: about 0.35
+"i"           -8.4
+"loved"       -6.5
+"every"       -6.5
+"movie"       -8.1      ← one spiky judge, big for every token
+```
+
+A group of 16 runs along one token's row. So channel 308 lands in a group
+of every token, and stretches that group's scale. Its small neighbors snap
+to 0 or to a far stop.
+
+```
+4 bits, groups of 16      linear    FP4
+calm groups (470)         0.037     0.041
+spike groups (10)         0.137     0.140   ← almost 4× worse, for both
+```
+
+**Why FP4 doesn't win.** FP4 builds its stops as a mirror: the same stops
+on the + and - sides. This spike is one-sided (negative), so the group runs
+from -6.48 up to only +0.95. FP4's far + side stops sit empty. Linear with
+a zero point (Day 6) fits its stops from min to max, so none go to waste.
+
+```
+FP4:      ●●●●●●●●●○○○○○○      ○ = an empty stop on the + side
+linear:   ●●●●●●●●●●●●●●●●     all inside -6.48 .. 0.95
+```
+
+**A correction to Day 19.** Day 19 guessed that FP4's close stops near 0
+help on spiky activation groups. That came from a made-up group with a
+positive spike. On real DistilBERT activations, the spike is one-sided and
+FP4 still loses.
+
+**The trade:** a mirror needs no zero point, so chips find it simpler and
+faster. The price is wasted stops whenever the numbers lean to one side.
+
+Note: one review, one model, one stop between layers. Other models differ.
+
+Try it: `python activations.py` (under a minute), then `python test_activations.py`.
+
+---
+
 ## Coming next
 
 Clipping (cut off the far edges on purpose) and why not always use K-means? Linear buttons follow a formula, so chips can
