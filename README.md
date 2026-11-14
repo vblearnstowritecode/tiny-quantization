@@ -1162,9 +1162,58 @@ Try it: `python activations.py` (under a minute), then `python test_activations.
 
 ---
 
+## Day 21: clipping, and why it only pays when the loud values are rare
+
+Clipping cut the weight grid's error by 5×, but made the spike group worse.
+
+**The idea.** One loud value stretches the range, so all the stops sit far
+apart and the quiet values blur. Clipping puts up a fence (the cut-off).
+Anything past the fence moves to the fence. The stops now cover a shorter
+road, so they sit closer together.
+
+```
+no clip:     -6.48 ●     ●     ●     ●     ●     ●  ...  ● +0.95
+cut at -2:   -2 ● ● ● ● ● ● ● ● ● ● ● ● ● ● ● ● +0.95
+                 the loud -6.48 now reads -2 (one big error)
+```
+
+It's like a phone camera with one bright lamp in a dim room. The camera lets
+the lamp turn into a white blob, so the rest of the room looks clear.
+
+**Two experiments, opposite results** (linear, 4 bits, error = MAE):
+
+```
+spike group, 1 loud in 16             weight grid, one scale for 589,824
+cut-off   error                       cut-off   error    pushed to the fence
+ none     0.139  ← best                none     0.0198         0
+  -4      0.228                        ±0.4     0.0133         7
+  -2      0.325                        ±0.1     0.0038    14,822  ← best
+  -0.5    0.510                        ±0.05    0.0067   137,318
+```
+
+In the spike group, the loud judge is 1 of 16. Clipping gives it one huge
+error, and the 15 quiet judges gain only a little. FP4 loses the same way.
+
+In the weight grid, pushing just 7 of 590,000 weights already cuts the error
+by a third. At ±0.1 the error drops 5×, and even beats K-means from Day 11
+(0.0041). Cut tighter (±0.05) and 1 in 4 weights hits the fence, so the
+error climbs back up.
+
+**The trade:** a loose fence blurs the many, a tight fence crushes the few.
+Engineers try many cut-offs on sample data and keep the best one. This is
+called **calibration**; NVIDIA's TensorRT does it before running a model in
+8 bits.
+
+Note: the spike also matters to the model (Day 20), so in real models the
+loud activation channels often get special care instead of a fence.
+
+Try it: `python clipping.py` (under a minute), then `python test_clipping.py`.
+
+---
+
 ## Coming next
 
-Clipping (cut off the far edges on purpose) and why not always use K-means? Linear buttons follow a formula, so chips can
+Why not always use K-means? Linear buttons follow a formula, so chips can
 multiply whole numbers fast. K-means carts sit anywhere, so every weight
 needs a lookup table first.
 
