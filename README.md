@@ -1211,6 +1211,64 @@ Try it: `python clipping.py` (under a minute), then `python test_clipping.py`.
 
 ---
 
+## Day 22: fake quantization, so the model feels the buttons while it learns
+
+Let the model train with rounded weights, and it finds better buttons than
+rounding at the end.
+
+**The why.** Days 10–21 rounded the weights *after* training. The model
+learned with smooth weights and never knew buttons existed. Often a better set
+of buttons was right there, and it never looked:
+
+```
+inputs [2, 2], target 6, buttons 0..3
+smooth training finds  [1.5, 1.5]  → 3 + 3 = 6  ✅
+round at the end       [2,   2  ]  → 4 + 4 = 8  ❌
+also on buttons        [1,   2  ]  → 2 + 4 = 6  ✅  never found
+```
+
+**Why not just train on the buttons?** Training nudges are tiny. A nudge of
+0.003 turns 2 into 1.997, which rounds back to 2. Every step. Stuck forever.
+
+**The trick: two copies of each weight.**
+
+```
+hidden copy (smooth) → round → buttons → answer and miss
+       ↑                                       │
+       └────────── nudge lands here ───────────┘
+```
+
+The answer always comes from the buttons, so the model feels the rounding.
+The tiny nudges pile up in the hidden copy, like a bank tracking fractions of
+a cent. Once they cross a halfway line, the button jumps. At the end we throw
+the hidden copy away and ship only the buttons.
+
+One snag: rounding is flat, so the true nudge through it is 0. So on the way
+back we pretend rounding isn't there. This is the **straight-through
+estimator (STE)**: forward stays honest, only backward pretends.
+
+**Result** (one neuron, 6 weights, buttons 0..3):
+
+```
+A. round at the end     [1, 0, 1, 0, 0, 1]   miss 0.596
+B. buttons only         [1, 0, 1, 0, 0, 1]   miss 0.596   (never moved)
+C. fake quant + STE     [1, 0, 1, 1, 0, 1]   miss 0.111   ← one weight moved
+```
+
+Weight 4 was 0.46 when smooth, just under halfway, so rounding sent it to 0.
+Most weights had rounded down, so the answer came out too small. Fake quant
+pushed the closest one over the line. Across 20 random toys: 9 wins, 9 ties,
+2 losses. Near a halfway line, weights can flip back and forth, so we shrink
+the nudges over time.
+
+**The trade:** better accuracy at low bits, but you pay for extra training,
+and you need training data. This is **quantization-aware training (QAT)**.
+PyTorch's `FakeQuantize` module does exactly this.
+
+Try it: `python fake_quant.py` (about 10 seconds), then `python test_fake_quant.py`.
+
+---
+
 ## Coming next
 
 Why not always use K-means? Linear buttons follow a formula, so chips can
