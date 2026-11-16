@@ -1261,6 +1261,25 @@ pushed the closest one over the line. Across 20 random toys: 9 wins, 9 ties,
 2 losses. Near a halfway line, weights can flip back and forth, so we shrink
 the nudges over time.
 
+**Why rounding each weight alone falls short.** Think of six friends
+splitting a bill, each rounding their share to the nearest dollar:
+
+```
+owes    pays
+0.71 →  1    ▲
+0.31 →  0    ▼
+1.19 →  1    ▼
+0.46 →  0    ▼  (biggest drop)
+0.20 →  0    ▼
+1.20 →  1    ▼
+```
+
+Each one rounds fairly, but five of six round down, so the bill comes up
+short. Round-at-the-end (A) rounds each weight alone and never checks the
+team. Fake quant (C) measures one shared miss from the rounded team at every
+step, so every weight hears "go up a bit". The one closest to halfway (0.46)
+crosses first. Only the weights get rounded, never the nudges.
+
 **The trade:** better accuracy at low bits, but you pay for extra training,
 and you need training data. This is **quantization-aware training (QAT)**.
 PyTorch's `FakeQuantize` module does exactly this.
