@@ -1288,6 +1288,61 @@ Try it: `python fake_quant.py` (about 10 seconds), then `python test_fake_quant.
 
 ---
 
+## Day 23: binary weights, keep only the sign
+
+Every weight becomes +1 or −1, times one shared number. On the real q_lin
+grid, this 1-bit version beats 2-bit linear.
+
+**The why.** One bit per weight is 32x smaller than a normal 32-bit number.
+And multiplying turns into adding or subtracting:
+
+```
+weight × input   →   +1 × input = +input
+                     −1 × input = −input     (no multiply needed)
+```
+
+Chips spend a lot of power on multiplying, so this matters for phones and
+tiny devices.
+
+**The snag: a loud choir.** A tiny 0.21 and a big 0.73 both become 1. Every
+weight sings at full volume, so the answer overshoots.
+
+**The fix: one shared volume knob.** Use the average size of the weights
+(signs ignored). Each weight becomes sign × average size.
+
+```
+weights    [ 0.21, -0.48,  0.73]
+signs      [ +1,   -1,    +1   ]
+avg size   (0.21 + 0.48 + 0.73) ÷ 3 = 0.47
+binary     [+0.47, -0.47, +0.47]
+```
+
+The XNOR-Net paper (2016) uses this same scale.
+
+**Result** (q_lin grid, 589,824 weights, average size 0.034):
+
+```
+                        bits   error (MAE)
+plain ±1                 1     0.966    ← the loud choir
+±1 × avg size            1     0.021
+2-bit linear (Day 11)    2     0.034
+```
+
+The shared scale cuts the error about 45x. And 1 bit beats 2 bits here.
+That only holds because outliers are rare. With 1 outlier in 10 weights,
+2-bit wins (see `test_two_bit_wins_when_outliers_are_common`).
+
+**The trade:** the smallest and fastest weights possible, but each weight
+keeps only its direction. Every size detail is gone.
+
+**A question to think about:** why does 1 bit beat 2 bits on this grid?
+Hint: where did 2-bit linear put its 4 buttons (Day 10), and where does the
+crowd live?
+
+Try it: `python binary.py` (mostly model loading), then `python test_binary.py`.
+
+---
+
 ## Coming next
 
 Why not always use K-means? Linear buttons follow a formula, so chips can
