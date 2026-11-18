@@ -1343,6 +1343,56 @@ Try it: `python binary.py` (mostly model loading), then `python test_binary.py`.
 
 ---
 
+## Day 24: why 1 bit beat 2 bits
+
+Answer to Day 23's question: 2-bit spent its buttons on the rare far
+weights. 1-bit spent its buttons on the crowd.
+
+**A tiny example.** 100 weights:
+
+```
+98 weights:  +1, -1, +1, -1, ...   ← the crowd
+ 2 weights:  -10 and +20           ← rare far ones
+```
+
+**2-bit linear** must cover the whole range with 4 evenly spaced buttons.
+The 2 far weights stretch the ruler, so no button sits near ±1.
+
+```
+buttons:   -10        0        +10       +20
+            ●---------●---------●---------●
+crowd:              ▓▓▓          (+1 → 0, -1 → 0: miss 1 each)
+```
+
+**1-bit binary** ignores the range. It keeps the sign and uses the average
+size (about 1.3) as the volume knob.
+
+```
+buttons:        -1.3  +1.3
+                  ●    ●
+crowd:           ▓▓▓▓▓▓          (+1 → +1.3: miss 0.3 each)
+```
+
+**Scoreboard:**
+
+```
+              crowd miss   far ones   average miss
+2-bit           1.0         exact        0.98
+1-bit           0.3         big          0.55   ← wins
+```
+
+The real q_lin grid works the same way. 2-bit's buttons sit about 0.4
+apart, so the whole crowd (97.5% within ±0.1) snaps to 0. Binary's buttons
+sit at ±0.034, inside the crowd.
+
+**The lesson** (same as k-means on Day 11 and clipping on Day 21):
+put the buttons where the crowd lives.
+
+**The catch:** make the far weights common (1 in 10) and 2-bit wins again.
+`test_two_bit_wins_when_outliers_are_common` checks this.
+
+---
+
 ## Coming next
 
 Why not always use K-means? Linear buttons follow a formula, so chips can
