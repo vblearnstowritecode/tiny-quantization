@@ -1393,6 +1393,55 @@ put the buttons where the crowd lives.
 
 ---
 
+## Day 25: ternary weights, binary plus a 0 button
+
+Binary forces every weight to +s or -s. Ternary adds a third button at 0,
+so quiet weights can stay quiet.
+
+**Why it matters.** Picture a choir. A few singers are loud, most should
+whisper. Binary makes everyone sing at one volume, so whispers become shouts:
+
+```
+weights:   0.9   -0.8   0.02  -0.01   0.03   0.01
+binary:   +0.3   -0.3   +0.3  -0.3    +0.3   +0.3    ← whispers shout
+ternary:  +0.85  -0.85   0     0       0      0      ← whispers stay quiet
+                                                     error 0.37 → 0.028
+```
+
+A true 0 also stays exactly 0. Binary can't do that: 0 has no sign.
+
+**The rule** (Ternary Weight Networks paper, 2016):
+
+```
+line = 0.7 × average size of all weights
+below the line → 0
+above the line → ±s,   s = average size of the weights above the line
+```
+
+It uses averages, not the max, so one far weight barely moves it on a big
+grid. (On a tiny grid, one weight of 20 can still silence a -0.8.)
+
+**On the real q_lin grid:**
+
+```
+                       buttons   error
+binary  ±avg              2      0.0211
+2-bit linear              4      0.0338
+ternary  -s, 0, +s        3      0.0153   ← best
+```
+
+43.6% of the weights become exactly 0. A chip can skip those, a bit like
+pruning. The rest need only add or subtract, then one multiply by s.
+
+**The catch:** the 0 button only helps when many weights truly sit near 0.
+On a flat crowd (sizes 0.01, 0.02, 0.03, evenly spread), ternary ties binary
+and even loses by a hair. Real grids peak at 0, so ternary wins there.
+Three buttons also need 2 bits of storage, not 1.
+
+Try it: `python ternary.py`
+
+---
+
 ## Coming next
 
 Why not always use K-means? Linear buttons follow a formula, so chips can
